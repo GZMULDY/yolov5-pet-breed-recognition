@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from response import success_response, error_response, ResponseCode
+from config import settings
 import shutil
 import os
 import sys
@@ -27,10 +28,10 @@ print(f"[Predict] sys.path[0]: {sys.path[0]}")
 
 UPLOAD_DIR = os.path.join(system_dir, "static", "uploads")
 RESULT_DIR = os.path.join(system_dir, "static", "results")
-WEIGHTS_PATH = os.path.join(project_root, "runs", "pets_breed_detection_large12", "weights", "best.pt")
+WEIGHTS_PATH = os.path.join(project_root, settings.MODEL_PATH)
 IMG_SIZE = 640
-CONF_THRES = 0.25
-IOU_THRES = 0.45
+CONF_THRES = settings.CONF_THRES
+IOU_THRES = settings.IOU_THRES
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)

@@ -79,11 +79,9 @@
 </template>
 
 <script setup>
-import { ref, computed, getCurrentInstance, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { getCurrentUser } from '@/api/auth';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { uni } from '@/utils/uni-adapter.js';
 
 const userInfo = ref({
   username: '加载中...',

@@ -611,4 +611,5 @@ const uni = {
 }
 
 // 导出
+export { uni }
 export default uni

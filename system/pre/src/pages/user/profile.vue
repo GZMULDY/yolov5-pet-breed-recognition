@@ -83,12 +83,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, getCurrentInstance } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getProfile, updateProfile } from '@/api/auth';
+import { uni } from '@/utils/uni-adapter.js';
 
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
 const router = useRouter();
 
 // 用户信息

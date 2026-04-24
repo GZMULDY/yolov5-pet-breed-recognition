@@ -183,63 +183,61 @@ PET_BREEDS_DATA = {
 }
 
 def init_pet_data():
-    db = database.SessionLocal()
-    try:
-        existing_categories = db.query(models.PetCategory).first()
-        if existing_categories:
-            print("Pet data already exists, skipping initialization.")
-            return
+    with database.SessionLocal() as db:
+        try:
+            existing_categories = db.query(models.PetCategory).first()
+            if existing_categories:
+                print("Pet data already exists, skipping initialization.")
+                return
 
-        category_map = {}
-        
-        def create_categories(data, parent_id=None, level=0):
-            for name, info in data.items():
-                icon = info.get("icon")
-                category = models.PetCategory(
-                    name=name,
-                    name_en=info.get("name_en"),
-                    parent_id=parent_id,
-                    icon=icon,
-                    sort_order=level
-                )
-                db.add(category)
-                db.flush()
-                category_map[name] = category.id
-                print(f"Created category: {name} (id: {category.id})")
-                
-                if "children" in info:
-                    create_categories(info["children"], category.id, level + 1)
-                else:
-                    if "name_en" in info:
-                        breed = models.PetBreed(
-                            name=name,
-                            name_en=info.get("name_en"),
-                            category_id=category.id,
-                            description=info.get("description"),
-                            origin=info.get("origin"),
-                            personality=info.get("personality"),
-                            care_tips=info.get("care_tips"),
-                            diet_needs=info.get("diet_needs"),
-                            health_issues=info.get("health_issues"),
-                            exercise_needs=info.get("exercise_needs"),
-                            size=info.get("size"),
-                            lifespan=info.get("lifespan")
-                        )
-                        db.add(breed)
-                        print(f"  Created breed: {name}")
-        
-        create_categories(PET_BREEDS_DATA)
-        
-        db.commit()
-        print("Pet data initialized successfully!")
-        
-    except Exception as e:
-        db.rollback()
-        print(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        db.close()
+            category_map = {}
+
+            def create_categories(data, parent_id=None, level=0):
+                for name, info in data.items():
+                    icon = info.get("icon")
+                    category = models.PetCategory(
+                        name=name,
+                        name_en=info.get("name_en"),
+                        parent_id=parent_id,
+                        icon=icon,
+                        sort_order=level
+                    )
+                    db.add(category)
+                    db.flush()
+                    category_map[name] = category.id
+                    print(f"Created category: {name} (id: {category.id})")
+
+                    if "children" in info:
+                        create_categories(info["children"], category.id, level + 1)
+                    else:
+                        if "name_en" in info:
+                            breed = models.PetBreed(
+                                name=name,
+                                name_en=info.get("name_en"),
+                                category_id=category.id,
+                                description=info.get("description"),
+                                origin=info.get("origin"),
+                                personality=info.get("personality"),
+                                care_tips=info.get("care_tips"),
+                                diet_needs=info.get("diet_needs"),
+                                health_issues=info.get("health_issues"),
+                                exercise_needs=info.get("exercise_needs"),
+                                size=info.get("size"),
+                                lifespan=info.get("lifespan")
+                            )
+                            db.add(breed)
+                            print(f"  Created breed: {name}")
+
+            create_categories(PET_BREEDS_DATA)
+
+            db.commit()
+            print("Pet data initialized successfully!")
+
+        except Exception as e:
+            db.rollback()
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     init_pet_data()

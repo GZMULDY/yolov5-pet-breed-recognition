@@ -27,13 +27,12 @@
 </template>
 
 <script setup>
-import { ref, getCurrentInstance, onMounted } from 'vue';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { ref, onMounted } from 'vue';
+import { uni } from '@/utils/uni-adapter.js';
 
 const article = ref(null);
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 // 从 URL 参数获取文章 ID
 const urlParams = new URLSearchParams(window.location.search);

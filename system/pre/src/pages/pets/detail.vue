@@ -194,11 +194,9 @@
 </template>
 
 <script setup>
-import { ref, getCurrentInstance, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { uni } from '@/utils/uni-adapter.js';
 const route = useRoute();
 const router = useRouter();
 import { useImageUpload } from '@/composables/useImageUpload';
@@ -245,7 +243,8 @@ const editForm = ref({
   health_issues: '',
   exercise_needs: ''
 });
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 function parseJwt(token) {
   try {

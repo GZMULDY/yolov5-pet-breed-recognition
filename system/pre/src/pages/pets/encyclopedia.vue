@@ -31,17 +31,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, getCurrentInstance } from 'vue';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { ref, computed, onMounted } from 'vue';
+import { uni } from '@/utils/uni-adapter.js';
 
 const categories = ref([]);
 const currentLevel = ref(0);
 const currentCategory = ref(null);
 const currentItems = ref([]);
 const loading = ref(false);
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 onMounted(() => {
   const needRestore = sessionStorage.getItem('encyclopedia_need_restore');
