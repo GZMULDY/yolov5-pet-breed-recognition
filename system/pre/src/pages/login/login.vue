@@ -114,11 +114,10 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, getCurrentInstance } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
 import { login, register, sendEmailCode as apiSendEmailCode, verifyEmailCode } from '@/api/auth';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { BASE_URL } from '@/utils/request.js';
+import { uni } from '@/utils/uni-adapter.js';
 
 const isRegister = ref(false);
 const formData = reactive({
@@ -146,7 +145,7 @@ const refreshCaptcha = () => {
   const key = generateUUID();
   captchaKey.value = key;
   // 添加时间戳防止缓存
-  captchaUrl.value = `http://127.0.0.1:8000/api/v1/captcha/${key}?t=${new Date().getTime()}`;
+  captchaUrl.value = `${BASE_URL}/captcha/${key}?t=${new Date().getTime()}`;
 };
 
 const toggleMode = () => {

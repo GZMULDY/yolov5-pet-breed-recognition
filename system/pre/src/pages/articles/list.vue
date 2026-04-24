@@ -38,13 +38,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, getCurrentInstance } from 'vue';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { ref, onMounted } from 'vue';
+import { uni } from '@/utils/uni-adapter.js';
 
 const articles = ref([]);
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 const fetchArticles = async () => {
   const token = uni.getStorageSync('token');

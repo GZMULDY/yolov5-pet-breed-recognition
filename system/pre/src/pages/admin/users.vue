@@ -156,10 +156,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, getCurrentInstance } from 'vue';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { ref, reactive, onMounted } from 'vue';
+import { uni } from '@/utils/uni-adapter.js';
 
 const users = ref([]);
 const searchKeyword = ref('');
@@ -179,7 +177,8 @@ const formData = reactive({
   avatarPreview: null
 });
 
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 let searchTimer = null;
 

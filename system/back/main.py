@@ -5,21 +5,18 @@ import os
 import sys
 from pathlib import Path
 
-# 添加当前目录到 Python 路径，确保能正确导入模块
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-# 使用明确的导入，避免模块冲突
 import models
-import database  
+import database
 import auth
 import schemas
+from config import settings
 from routers import auth as auth_router
 from routers import articles as article_router
 from routers import pets as pets_router
 from routers import upload as upload_router
-# 注意：predict 路由将在后面动态导入或在 try-except 块中处理，
-# 因为它依赖于 YOLOv5 环境，如果环境未配置好可能会报错
 try:
     from routers import predict as predict_router
     PREDICT_AVAILABLE = True
@@ -35,7 +32,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,12 +55,9 @@ async def request_logging_middleware(request: Request, call_next):
             content={"detail": str(e)}
         )
 
-# 挂载静态文件目录，用于访问上传的图片和识别结果
-# 获取 system 目录路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-system_dir = os.path.dirname(current_dir)
-static_dir = os.path.join(system_dir, "static")
-os.makedirs(static_dir, exist_ok=True) # 确保目录存在
+# 挂载静态文件目录
+static_dir = settings.STATIC_DIR
+os.makedirs(static_dir, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -77,28 +71,28 @@ def startup_event():
         # Create default admin user if not exists
         user = db.query(models.User).filter(models.User.username == "admin").first()
         if not user:
-            hashed_password = auth.get_password_hash("admin")
+            hashed_password = auth.get_password_hash(settings.DEFAULT_ADMIN_PASSWORD)
             db_user = models.User(
-                username="admin", 
+                username="admin",
                 password_hash=hashed_password,
                 role=schemas.UserRole.ADMIN
             )
             db.add(db_user)
             db.commit()
-            print("Default admin created: admin / admin")
-        
+            print(f"Default admin created: admin / {settings.DEFAULT_ADMIN_PASSWORD}")
+
         # Create default normal user for testing
         test_user = db.query(models.User).filter(models.User.username == "user").first()
         if not test_user:
-            hashed_password = auth.get_password_hash("user")
+            hashed_password = auth.get_password_hash(settings.DEFAULT_USER_PASSWORD)
             db_user = models.User(
-                username="user", 
-                password_hash=hashed_password, 
+                username="user",
+                password_hash=hashed_password,
                 role=schemas.UserRole.USER
             )
             db.add(db_user)
             db.commit()
-            print("Default user created: user / user")
+            print(f"Default user created: user / {settings.DEFAULT_USER_PASSWORD}")
 
         # Initialize pet data
         try:

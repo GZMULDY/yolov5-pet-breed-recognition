@@ -169,10 +169,8 @@
 </template>
 
 <script setup>
-import { ref, getCurrentInstance, watch } from 'vue';
-
-const { proxy } = getCurrentInstance();
-const uni = proxy.uni;
+import { ref, watch } from 'vue';
+import { uni } from '@/utils/uni-adapter.js';
 
 const filePath = ref('');
 const fileType = ref('image'); // 'image' or 'video'
@@ -181,7 +179,8 @@ const result = ref(null);
 const breedKnowledge = ref(null);  // 存储品种知识数据
 const loadingKnowledge = ref(false);  // 知识加载状态
 
-const API_URL = 'http://127.0.0.1:8000/api/v1';
+import { BASE_URL } from '@/utils/request.js';
+const API_URL = BASE_URL;
 
 /**
  * 根据识别结果中的品种英文名称获取品种详细知识
