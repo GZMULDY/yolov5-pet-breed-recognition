@@ -282,7 +282,7 @@ const fetchBreedDetail = async () => {
   try {
     const token = uni.getStorageSync('token');
     const response = await uni.request({
-      url: `${API_URL}/breeds/${breedId.value}`,
+      url: `${API_URL}/pets/breeds/${breedId.value}`,
       method: 'GET',
       header: { 'Authorization': `Bearer ${token}` }
     });
@@ -300,6 +300,9 @@ const fetchBreedDetail = async () => {
     if (res.statusCode === 200) {
       // 后端返回格式是 { code, message, data: {...}, timestamp }
       const breedData = res.data?.data || res.data;
+      if (breedData.image && !breedData.image.startsWith('data:')) {
+        breedData.image = 'data:image/jpeg;base64,' + breedData.image;
+      }
       breed.value = breedData;
     } else if (res.statusCode === 401) {
       uni.showToast({ title: '请先登录', icon: 'none' });
@@ -318,7 +321,7 @@ const fetchBreedDetail = async () => {
 };
 
 const goBack = () => {
-  router.replace('/pets/encyclopedia');
+  router.back();
 };
 
 const showEditModal = () => {
@@ -387,9 +390,9 @@ const saveBreed = async () => {
     if (imageData !== null) {
       requestData.image_base64 = imageData;
     }
-    
+
     const res = await uni.request({
-      url: `${API_URL}/breeds/${breedId.value}`,
+      url: `${API_URL}/pets/breeds/${breedId.value}`,
       method: 'PUT',
       header: {
         'Authorization': `Bearer ${token}`,

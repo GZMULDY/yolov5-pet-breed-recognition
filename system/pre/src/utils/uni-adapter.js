@@ -558,52 +558,66 @@ const uni = {
   
   uploadFile: (options) => {
     const { url, filePath, name, header, success, fail } = options
-    
-    const formData = new FormData()
-    // filePath 是 blob URL，需要获取实际文件
-    fetch(filePath)
-      .then(res => res.blob())
-      .then(blob => {
-        // 根据 blob type 确定文件扩展名
-        let extension = 'jpg'
-        if (blob.type.includes('png')) extension = 'png'
-        else if (blob.type.includes('gif')) extension = 'gif'
-        else if (blob.type.includes('webp')) extension = 'webp'
-        else if (blob.type.includes('jpeg') || blob.type.includes('jpg')) extension = 'jpg'
-        else if (blob.type.includes('mp4')) extension = 'mp4'
-        else if (blob.type.includes('webm')) extension = 'webm'
-        
-        const fileName = `file.${extension}`
-        const file = new File([blob], fileName, { type: blob.type })
-        formData.append(name || 'file', file)
-        
-        return fetch(url, {
-          method: 'POST',
-          headers: {
-            ...header
-          },
-          body: formData
-        })
+
+    const doUpload = (file) => {
+      const formData = new FormData()
+      formData.append(name || 'file', file)
+
+      return fetch(url, {
+        method: 'POST',
+        headers: { ...header },
+        body: formData
       })
-      .then(res => {
-        return res.text().then(text => {
-          return {
-            statusCode: res.status,
-            data: text,
-            errMsg: 'uploadFile:ok'
+    }
+
+    const handleResponse = (res) => {
+      return res.text().then(text => {
+        return { statusCode: res.status, data: text, errMsg: 'uploadFile:ok' }
+      })
+    }
+
+    // filePath 可能是 File 对象或 blob URL 字符串
+    if (filePath instanceof File) {
+      doUpload(filePath)
+        .then(handleResponse)
+        .then(result => {
+          if (result.statusCode >= 200 && result.statusCode < 300) {
+            if (success) success(result)
+          } else {
+            if (fail) fail(result)
           }
         })
-      })
-      .then(result => {
-        if (result.statusCode >= 200 && result.statusCode < 300) {
-          if (success) success(result)
-        } else {
-          if (fail) fail(result)
-        }
-      })
-      .catch(err => {
-        if (fail) fail({ errMsg: err.message, statusCode: 500 })
-      })
+        .catch(err => {
+          if (fail) fail({ errMsg: err.message || '网络请求失败', statusCode: 500 })
+        })
+    } else {
+      // blob URL 字符串，先 fetch 获取 blob 再上传
+      fetch(filePath)
+        .then(res => res.blob())
+        .then(blob => {
+          let extension = 'jpg'
+          if (blob.type.includes('png')) extension = 'png'
+          else if (blob.type.includes('gif')) extension = 'gif'
+          else if (blob.type.includes('webp')) extension = 'webp'
+          else if (blob.type.includes('jpeg') || blob.type.includes('jpg')) extension = 'jpg'
+          else if (blob.type.includes('mp4')) extension = 'mp4'
+          else if (blob.type.includes('webm')) extension = 'webm'
+
+          const file = new File([blob], `file.${extension}`, { type: blob.type })
+          return doUpload(file)
+        })
+        .then(handleResponse)
+        .then(result => {
+          if (result.statusCode >= 200 && result.statusCode < 300) {
+            if (success) success(result)
+          } else {
+            if (fail) fail(result)
+          }
+        })
+        .catch(err => {
+          if (fail) fail({ errMsg: err.message || '网络请求失败', statusCode: 500 })
+        })
+    }
   },
   
   // 网络请求 API

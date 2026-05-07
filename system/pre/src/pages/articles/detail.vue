@@ -52,7 +52,7 @@ const fetchArticleDetail = async (id) => {
       header: { 'Authorization': `Bearer ${token}` }
     });
     if (res.statusCode === 200) {
-      article.value = res.data;
+      article.value = res.data?.data || res.data;
     } else {
       uni.showToast({ title: '文章不存在', icon: 'none' });
     }

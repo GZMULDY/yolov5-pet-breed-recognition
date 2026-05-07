@@ -119,8 +119,8 @@ const fileInput = ref(null);
 const fetchProfile = async () => {
   try {
     const response = await getProfile();
-    // 后端返回统一响应格式: { code: "200", message: "...", data: {...} }
-    if (response && response.code === '200') {
+    // 后端返回统一响应格式: { code: 200, message: "...", data: {...} }
+    if (response && response.code === 200) {
       const data = response.data;
       userInfo.id = data.id;
       userInfo.username = data.username;
@@ -255,8 +255,8 @@ const handleSave = async () => {
 
     const response = await updateProfile(updateData);
     
-    // 后端返回统一响应格式: { code: "200", message: "...", data: {...} }
-    if (response && response.code === '200') {
+    // 后端返回统一响应格式: { code: 200, message: "...", data: {...} }
+    if (response && response.code === 200) {
       uni.showToast({ title: '保存成功', icon: 'success' });
       // 更新本地用户信息
       userInfo.nickname = formData.nickname;

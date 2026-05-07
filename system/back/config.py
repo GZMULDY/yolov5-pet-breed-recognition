@@ -1,49 +1,192 @@
 """
-统一配置管理模块
-使用 pydantic BaseSettings 从环境变量读取配置，支持 .env 文件
+应用配置管理模块
+
+【模块职责】
+集中管理应用的所有配置项，支持从环境变量读取配置值。
+
+【设计原则】
+1. 敏感信息通过环境变量注入，不硬编码在代码中
+2. 提供默认值，方便开发环境快速启动
+3. 配置项分类清晰，便于维护
+
+【配置分类】
+1. 数据库配置：连接信息、连接池参数
+2. 认证配置：JWT 密钥、令牌有效期
+3. 邮件配置：SMTP 服务器信息
+4. 应用配置：端口、静态文件目录
+5. 跨域配置：允许的前端域名
+
+【环境变量】
+生产环境应设置以下环境变量：
+- SECRET_KEY: JWT 签名密钥
+- DATABASE_URL: 数据库连接字符串
+- MAIL_PASSWORD: 邮箱授权码
+
+【安全注意】
+1. SECRET_KEY 绝不能泄露，否则 JWT 签名可以被伪造
+2. 生产环境必须使用环境变量，不要使用默认值
 """
-from pydantic_settings import BaseSettings
+
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-class Settings(BaseSettings):
-    # 数据库
-    DATABASE_URL: str = "mysql+pymysql://root:root@localhost:3306/yolo_system"
+class Settings:
+    """
+    应用配置类
 
-    # JWT
-    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    【设计模式】单例模式（通过模块级别的 settings 实例实现）
+
+    【属性访问】
+    settings.SECRET_KEY     # 获取 JWT 密钥
+    settings.DATABASE_URL   # 获取数据库连接字符串
+
+    【环境变量读取优先级】
+    1. 系统环境变量
+    2. .env 文件（如果使用 python-dotenv）
+    3. 代码中的默认值
+
+    【配置项说明】
+    每个配置项都有明确的用途和默认值，
+    生产环境应通过环境变量覆盖默认值。
+    """
+
+    # =========================================================================
+    # JWT 认证配置
+    # =========================================================================
+
+    # JWT 签名密钥
+    # 【作用】用于签名和验证 JWT 令牌
+    # 【安全】必须保密！泄露后任何人都可以伪造令牌
+    # 【生成方式】推荐使用 openssl rand -hex 32 生成随机字符串
+    # 【默认值】仅用于开发环境，生产环境必须修改
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-please")
+
+    # JWT 加密算法
+    # 【说明】HS256 是对称加密算法，签名和验证使用同一个密钥
+    # 【备选】如果需要非对称加密，可使用 RS256（需要公私钥对）
     ALGORITHM: str = "HS256"
+
+    # 访问令牌有效期（分钟）
+    # 【说明】令牌过期后需要重新登录获取新令牌
+    # 【权衡】时间短更安全但用户体验差，时间长反之
+    # 【建议】根据安全要求选择：高安全场景用 15 分钟，一般场景用 30-60 分钟
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # 邮件服务
-    MAIL_USERNAME: str = ""
-    MAIL_PASSWORD: str = ""
-    MAIL_FROM: str = ""
-    MAIL_SERVER: str = "smtp.qq.com"
-    MAIL_PORT: int = 465
-    MAIL_SSL_TLS: bool = True
-    MAIL_STARTTLS: bool = False
+    # =========================================================================
+    # 数据库配置
+    # =========================================================================
 
-    # YOLOv5 模型
-    MODEL_PATH: str = "runs/pets_breed_detection_large12/weights/best.pt"
-    CONF_THRES: float = 0.25
-    IOU_THRES: float = 0.45
+    # 数据库连接 URL
+    # 【格式】mysql+pymysql://用户名:密码@主机:端口/数据库名
+    # 【参数说明】
+    #   - mysql: 数据库类型
+    #   - +pymysql: 使用 PyMySQL 驱动（纯 Python 实现）
+    #   - 用户名/密码: 数据库认证信息
+    #   - 主机:端口: 数据库服务器地址，localhost 表示本机
+    #   - 数据库名: 要连接的数据库名称
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "mysql+pymysql://root:abc%26123@localhost:3306/yolo_system"
+    )
 
-    # 文件路径
-    STATIC_DIR: str = str(Path(__file__).parent.parent / "static")
+    # =========================================================================
+    # 邮件服务配置
+    # =========================================================================
+    # 【用途】发送验证码、找回密码等邮件通知
+    # 【注意】大多数邮箱需要开启 SMTP 服务并使用授权码而非登录密码
 
-    # 默认用户密码
-    DEFAULT_ADMIN_PASSWORD: str = "admin"
-    DEFAULT_USER_PASSWORD: str = "user"
+    # SMTP 服务器地址
+    # 【示例】QQ邮箱: smtp.qq.com, 163邮箱: smtp.163.com, Gmail: smtp.gmail.com
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.qq.com")
 
-    # CORS
-    CORS_ORIGINS: list = ["*"]
+    # SMTP 端口
+    # 【常用】
+    # - 25: SMTP 标准端口（明文传输，很多云服务商封锁）
+    # - 465: SMTPS 加密端口（SSL）
+    # - 587: SMTP submission 端口（STARTTLS）
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "465"))
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "extra": "ignore"
-    }
+    # 发件人邮箱地址
+    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "your_email@qq.com")
+
+    # 邮箱授权码（不是登录密码！）
+    # 【获取方式】登录邮箱设置 → 账户 → 开启 SMTP 服务 → 获取授权码
+    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "your_email_auth_code")
+
+    # 发件人显示名称
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "your_email@qq.com")
+
+    # 加密方式
+    # 【STARTTLS】在明文连接上升级为加密连接（端口 587）
+    # 【SSL/TLS】全程加密连接（端口 465）
+    MAIL_STARTTLS: bool = False      # 不使用 STARTTLS
+    MAIL_SSL_TLS: bool = True        # 使用 SSL/TLS（端口 465）
+
+    # =========================================================================
+    # 静态文件配置
+    # =========================================================================
+
+    # 静态文件存储目录
+    # 【用途】存储用户上传的文件、AI 检测结果图片等
+    # 【路径】使用相对于配置文件的路径
+    # 【创建】如果目录不存在，应用启动时会自动创建
+    STATIC_DIR: str = os.getenv(
+        "STATIC_DIR",
+        str(Path(__file__).parent.parent / "static")
+    )
+
+    # =========================================================================
+    # 跨域配置（CORS）
+    # =========================================================================
+    # 【说明】控制哪些前端域名可以访问后端 API
+    # 【开发环境】通常允许所有来源 ["*"]
+    # 【生产环境】应限制为具体的前端域名
+
+    CORS_ORIGINS: list = [
+        "http://localhost:5173",      # Vite 开发服务器默认端口
+        "http://localhost:5174",      # Vite 开发服务器备用端口
+        "http://localhost:5175",      # Vite 开发服务器备用端口
+        "http://localhost:3000",      # React 开发服务器默认端口
+        "http://localhost:8080",      # Vue CLI 开发服务器默认端口
+        "http://localhost:80",        # HTTP 默认端口
+        "http://localhost:8000",      # 本后端服务端口
+        "http://127.0.0.1:5173",      # localhost 的 IP 形式
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:80",
+        "http://127.0.0.1:8000",
+        "*",                          # 允许所有来源（仅开发环境）
+    ]
+
+    # =========================================================================
+    # 默认账户配置
+    # =========================================================================
+    # 【用途】系统初始化时创建默认账户
+    # 【安全】生产环境应在初始化后立即修改密码
+
+    DEFAULT_ADMIN_PASSWORD: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin")
+    DEFAULT_USER_PASSWORD: str = os.getenv("DEFAULT_USER_PASSWORD", "user")
 
 
+# =============================================================================
+# 全局配置实例
+# =============================================================================
+# 【设计模式】单例模式
+# 在模块加载时创建唯一的配置实例
+# 其他模块通过导入 settings 来访问配置
+#
+# 【使用方式】
+# from config import settings
+# print(settings.SECRET_KEY)
+#
+# 【优点】
+# 1. 配置全局唯一，避免重复读取环境变量
+# 2. 配置值在应用启动时确定，运行期间不可变
+# 3. 方便测试时 mock 配置
 settings = Settings()
