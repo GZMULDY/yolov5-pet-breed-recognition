@@ -39,6 +39,7 @@ const currentLevel = ref(0);
 const currentCategory = ref(null);
 const currentItems = ref([]);
 const loading = ref(false);
+const navStack = ref([]);  // 导航栈：记录每级的 { category, items }
 import { BASE_URL } from '@/utils/request.js';
 const API_URL = BASE_URL;
 
@@ -49,9 +50,16 @@ onMounted(() => {
     if (savedState) {
       try {
         const state = JSON.parse(savedState);
-        currentLevel.value = state.level || 0;
-        currentCategory.value = state.category || null;
-        currentItems.value = state.items || [];
+        // 验证恢复的数据有效（有 children 属性说明是 tree 数据）
+        const hasValidData = state.items && state.items.length > 0 && state.items[0].children !== undefined;
+        if (hasValidData) {
+          currentLevel.value = state.level || 0;
+          currentCategory.value = state.category || null;
+          currentItems.value = state.items || [];
+          navStack.value = state.stack || [];
+        } else {
+          fetchCategories();
+        }
       } catch (e) {
         console.error('Failed to restore encyclopedia state:', e);
         fetchCategories();
@@ -68,7 +76,7 @@ const fetchCategories = async () => {
   try {
     const token = uni.getStorageSync('token');
     const response = await uni.request({
-      url: `${API_URL}/categories`,
+      url: `${API_URL}/pets/categories/tree`,
       method: 'GET',
       header: {
         'Authorization': `Bearer ${token}`
@@ -107,6 +115,12 @@ const fetchCategories = async () => {
 
 const handleItemClick = async (item) => {
   if (item.children && item.children.length > 0) {
+    // 保存当前状态到导航栈
+    navStack.value.push({
+      level: currentLevel.value,
+      category: currentCategory.value,
+      items: currentItems.value
+    });
     currentLevel.value++;
     currentCategory.value = item;
     currentItems.value = item.children;
@@ -114,7 +128,8 @@ const handleItemClick = async (item) => {
     sessionStorage.setItem('encyclopedia_state', JSON.stringify({
       level: currentLevel.value,
       category: currentCategory.value,
-      items: currentItems.value
+      items: currentItems.value,
+      stack: navStack.value
     }));
     sessionStorage.setItem('encyclopedia_need_restore', 'true');
     await fetchBreedAndNavigate(item);
@@ -126,7 +141,7 @@ const fetchBreedAndNavigate = async (category) => {
   try {
     const token = uni.getStorageSync('token');
     const response = await uni.request({
-      url: `${API_URL}/breeds?category_id=${category.id}`,
+      url: `${API_URL}/pets/breeds?category_id=${category.id}`,
       method: 'GET',
       header: { 'Authorization': `Bearer ${token}` }
     });
@@ -163,38 +178,11 @@ const fetchBreedAndNavigate = async (category) => {
 };
 
 const goBack = () => {
-  if (currentLevel.value > 0) {
-    currentLevel.value--;
-    if (currentLevel.value === 0) {
-      currentCategory.value = null;
-      currentItems.value = categories.value;
-    } else {
-      const findParent = (items, targetId) => {
-        for (const item of items) {
-          if (item.id === targetId) return items;
-          if (item.children) {
-            const found = findParent(item.children, targetId);
-            if (found) return found;
-          }
-        }
-        return null;
-      };
-      const parentItems = findParent(categories.value, currentCategory.value.id);
-      if (parentItems) {
-        currentItems.value = parentItems;
-      }
-      currentCategory.value = null;
-      for (const cat of categories.value) {
-        if (cat.children) {
-          for (const child of cat.children) {
-            if (child.id === currentItems.value[0]?.parent_id) {
-              currentCategory.value = cat;
-              break;
-            }
-          }
-        }
-      }
-    }
+  if (navStack.value.length > 0) {
+    const prev = navStack.value.pop();
+    currentLevel.value = prev.level;
+    currentCategory.value = prev.category;
+    currentItems.value = prev.items;
   }
 };
 </script>

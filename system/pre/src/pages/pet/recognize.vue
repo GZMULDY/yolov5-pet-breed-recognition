@@ -173,6 +173,7 @@ import { ref, watch } from 'vue';
 import { uni } from '@/utils/uni-adapter.js';
 
 const filePath = ref('');
+const fileObj = ref(null);  // 存储原始 File 对象，用于上传
 const fileType = ref('image'); // 'image' or 'video'
 const loading = ref(false);
 const result = ref(null);
@@ -190,7 +191,7 @@ const API_URL = BASE_URL;
 const fetchBreedKnowledge = async (nameEn) => {
   if (!nameEn) return null;
   
-  const requestUrl = `${API_URL}/breeds/by-name/${encodeURIComponent(nameEn)}`;
+  const requestUrl = `${API_URL}/pets/breeds/by-name/${encodeURIComponent(nameEn)}`;
   
   try {
     const response = await new Promise((resolve, reject) => {
@@ -207,9 +208,14 @@ const fetchBreedKnowledge = async (nameEn) => {
     
     if (response.statusCode === 200 && response.data) {
       const responseData = response.data;
-      if (responseData.code === '200' && responseData.data) {
-        return responseData.data;
-      } else if (responseData.code === '404') {
+      if (responseData.code === 200 && responseData.data) {
+        const breed = responseData.data;
+        // 品种图片是 base64 字符串，添加 data URI 前缀
+        if (breed.image && !breed.image.startsWith('data:')) {
+          breed.image = 'data:image/jpeg;base64,' + breed.image;
+        }
+        return breed;
+      } else if (responseData.code === 404) {
         // 品种不存在
       }
     }
@@ -288,6 +294,7 @@ const chooseImage = (sourceType) => {
     sourceType: [sourceType],
     success: (res) => {
       filePath.value = res.tempFilePaths[0];
+      fileObj.value = res.tempFiles ? res.tempFiles[0] : null;
       fileType.value = 'image';
       result.value = null;
     }
@@ -300,6 +307,7 @@ const chooseVideo = (sourceType) => {
     compressed: true,
     success: (res) => {
       filePath.value = res.tempFilePath;
+      fileObj.value = res.tempFile || null;
       fileType.value = 'video';
       result.value = null;
     }
@@ -308,18 +316,25 @@ const chooseVideo = (sourceType) => {
 
 const reset = () => {
   filePath.value = '';
+  fileObj.value = null;
   result.value = null;
 };
 
 const analyzeFile = async () => {
   if (!filePath.value) return;
-  
-  loading.value = true;
+
   const token = uni.getStorageSync('token');
-  
+  if (!token) {
+    uni.showToast({ title: '请先登录', icon: 'none' });
+    return;
+  }
+
+  loading.value = true;
+  const uploadFilePath = fileObj.value || filePath.value;
+
   uni.uploadFile({
     url: `${API_URL}/predict`,
-    filePath: filePath.value,
+    filePath: uploadFilePath,
     name: 'file',
     header: {
       'Authorization': `Bearer ${token}`
@@ -329,28 +344,42 @@ const analyzeFile = async () => {
       if (uploadFileRes.statusCode === 200) {
         try {
           const response = JSON.parse(uploadFileRes.data);
-          // 后端返回格式是 { code, message, data: { type, results, image_url }, timestamp }
-          // 需要取 response.data 来获取实际的识别结果
-          if (response.data) {
+          if (response.data && response.data.results && response.data.results.length > 0) {
+            // 后端返回 class/confidence/bbox，补齐 type 和 label 字段
+            response.data.type = fileType.value;
+            response.data.results = response.data.results.map(r => ({
+              ...r,
+              label: r.class || r.label
+            }));
+            // 图片 URL 转为绝对地址（后端 static 文件）
+            if (response.data.image_url && !response.data.image_url.startsWith('http')) {
+              response.data.image_url = API_URL.replace('/api/v1', '') + response.data.image_url;
+            }
             result.value = response.data;
             uni.showToast({ title: '识别完成 ✨', icon: 'success' });
-            // 直接调用品种知识获取，不依赖 watch
             processBreedKnowledge(response.data);
+          } else if (response.data) {
+            response.data.type = fileType.value;
+            if (response.data.image_url && !response.data.image_url.startsWith('http')) {
+              response.data.image_url = API_URL.replace('/api/v1', '') + response.data.image_url;
+            }
+            result.value = response.data;
+            uni.showToast({ title: '未检测到宠物', icon: 'none' });
           } else {
             uni.showToast({ title: '识别结果为空', icon: 'none' });
           }
         } catch (e) {
           console.error('解析响应失败:', e);
-          uni.showToast({ title: '解析失败', icon: 'none' });
+          uni.showToast({ title: '结果解析失败', icon: 'none' });
         }
       } else {
-        uni.showToast({ title: '识别失败 😭', icon: 'none' });
+        uni.showToast({ title: '识别失败，服务器错误', icon: 'none' });
       }
     },
     fail: (err) => {
       loading.value = false;
-      // 错误已在 request.js 中统一处理
-      console.error(err);
+      console.error('上传失败:', err);
+      uni.showToast({ title: '网络请求失败，请检查连接', icon: 'none' });
     }
   });
 };

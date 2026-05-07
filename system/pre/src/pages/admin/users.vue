@@ -196,8 +196,9 @@ const fetchUsers = async (keyword = '') => {
     });
     
     if (res.statusCode === 200) {
-      const usersData = res.data?.data || res.data;
-      users.value = usersData;
+      const responseData = res.data?.data || res.data;
+      // 后端返回 {items: [...], total: N}，提取 items 数组
+      users.value = Array.isArray(responseData) ? responseData : (responseData.items || []);
     }
   } catch (e) {
     console.error('获取用户列表失败:', e);

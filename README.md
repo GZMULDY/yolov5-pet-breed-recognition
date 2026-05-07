@@ -8,11 +8,11 @@
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Vue 3 + UniApp (跨平台) |
+| 前端 | Vue 3 + Vite + UniApp 适配层 |
 | 后端 | FastAPI (Python Web 框架) |
-| 数据库 | MySQL 5.7+ |
-| 目标检测 | YOLOv5 v5.0 |
-| 认证 | JWT (HS256) |
+| 数据库 | MySQL 5.7+ / SQLAlchemy ORM |
+| 目标检测 | YOLOv5 v5.0 (PyTorch) |
+| 认证 | JWT (HS256, 30min 过期) |
 | 环境管理 | Conda |
 
 ### 功能特性
@@ -30,6 +30,8 @@
 
 ```
 yolov5-5.0/
+├── start.py                        # 一键启动脚本
+├── requirements.txt                # 项目级依赖
 ├── system/                        # 系统代码目录
 │   ├── back/                      # FastAPI 后端
 │   │   ├── routers/               # API 路由层
@@ -52,18 +54,13 @@ yolov5-5.0/
 │   │   ├── init_pets.py           # 宠物数据初始化
 │   │   ├── requirements.txt       # Python 依赖
 │   │   └── .env.example           # 环境变量示例
-│   ├── pre/                        # UniApp 前端
+│   ├── pre/                        # Vue 3 前端
 │   │   ├── src/
 │   │   │   ├── api/               # API 请求封装
-│   │   │   │   ├── auth.js        # 认证 API
-│   │   │   │   ├── pet.js         # 宠物 API
-│   │   │   │   ├── article.js     # 文章 API
-│   │   │   │   ├── predict.js     # 识别 API
-│   │   │   │   └── admin.js       # 管理 API
 │   │   │   ├── pages/             # 页面组件
 │   │   │   ├── router/            # 路由配置
-│   │   │   ├── store/             # 状态管理
-│   │   │   └── utils/             # 工具函数
+│   │   │   ├── composables/       # Vue 组合式函数
+│   │   │   └── utils/             # 工具函数（uni-adapter 等）
 │   │   └── package.json           # 前端依赖
 │   └── static/                    # 静态文件目录
 │       ├── uploads/               # 上传文件
@@ -98,71 +95,55 @@ yolov5-5.0/
 | Node.js | 14+ |
 | Conda | 推荐 |
 
-### 2. 后端安装与运行
-
-#### 2.1 创建 Conda 环境
+### 2. 一键启动（推荐）
 
 ```powershell
-# 创建环境
-conda create -n yolo python=3.9 -y
+# 使用 conda 环境的 Python 直接启动
+D:\Annaconda\envs\yolo\python.exe start.py
+```
 
-# 激活环境
+脚本会自动清理端口残留进程，依次启动后端和前端，Ctrl+C 统一停止。
+
+### 3. 后端手动安装与运行
+
+#### 3.1 创建 Conda 环境
+
+```powershell
+conda create -n yolo python=3.9 -y
 conda activate yolo
 ```
 
-#### 2.2 安装依赖
+#### 3.2 安装依赖
 
 ```powershell
-# 进入后端目录
 cd system/back
-
-# 安装 Python 依赖
 pip install -r requirements.txt
 
-# 安装 PyTorch (根据你的 CUDA 版本选择)
-# CPU 版本
-pip install torch torchvision
-
-# GPU 版本 (CUDA 11.8)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# PyTorch (根据 CUDA 版本选择)
+pip install torch torchvision                      # CPU
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118  # CUDA 11.8
 ```
 
-#### 2.3 配置数据库
+#### 3.3 配置数据库
 
-确保 MySQL 服务已启动。数据库会在首次启动时自动创建，无需手动创建。
+确保 MySQL 服务已启动。数据库和表结构首次启动时自动创建。
 
-#### 2.4 配置环境变量
+#### 3.4 配置环境变量
 
 复制 `.env.example` 为 `.env` 并修改配置：
 
 ```env
-# 数据库配置
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=yolo_system
-
-# JWT 密钥 (生产环境请修改为随机字符串)
+DATABASE_URL=mysql+pymysql://root:password@localhost:3306/yolo_system
 SECRET_KEY=your_secret_key_here
-
-# 邮件服务配置 (可选，用于邮箱验证)
-MAIL_USERNAME=your_qq@qq.com
-MAIL_PASSWORD=your_qq_auth_code
-MAIL_FROM=your_qq@qq.com
-MAIL_SERVER=smtp.qq.com
-MAIL_PORT=465
-
-# 默认用户密码 (生产环境建议修改)
 DEFAULT_ADMIN_PASSWORD=admin
 DEFAULT_USER_PASSWORD=user
 ```
 
-#### 2.5 启动后端服务
+#### 3.5 启动后端
 
 ```powershell
-# 在 system/back 目录下运行
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+cd system/back
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 服务启动后：
@@ -170,7 +151,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - API 文档: http://localhost:8000/docs
 - ReDoc 文档: http://localhost:8000/redoc
 
-### 3. 前端安装与运行
+### 4. 前端手动安装与运行
 
 #### 3.1 安装依赖
 
@@ -230,15 +211,17 @@ npm run build:h5
 
 | 方法 | 路径 | 描述 | 权限 |
 |------|------|------|------|
-| GET | /categories | 获取宠物分类树 | 登录 |
-| GET | /categories/{id}/children | 获取子分类 | 登录 |
-| GET | /breeds | 获取品种列表 | 登录 |
-| GET | /breeds/{id} | 获取品种详情 | 登录 |
-| GET | /breeds/by-name/{name} | 按英文名获取品种 | 登录 |
-| POST | /categories | 创建分类 | 管理员 |
-| POST | /breeds | 创建品种 | 管理员 |
-| PUT | /breeds/{id} | 更新品种 | 管理员 |
-| DELETE | /breeds/{id} | 删除品种 | 管理员 |
+| GET | /pets/categories | 获取分类列表 | 登录 |
+| GET | /pets/categories/tree | 获取完整分类树 | 登录 |
+| POST | /pets/categories | 创建分类 | 管理员 |
+| DELETE | /pets/categories/{id} | 删除分类 | 管理员 |
+| GET | /pets/breeds | 获取品种列表 | 登录 |
+| GET | /pets/breeds/search | 搜索品种 | 登录 |
+| GET | /pets/breeds/by-name/{name_en} | 按英文名获取品种 | 登录 |
+| GET | /pets/breeds/{id} | 获取品种详情 | 登录 |
+| POST | /pets/breeds | 创建品种 | 管理员 |
+| PUT | /pets/breeds/{id} | 更新品种 | 管理员 |
+| DELETE | /pets/breeds/{id} | 删除品种 | 管理员 |
 
 ### 预测接口 `/api/v1`
 
@@ -261,6 +244,7 @@ npm run build:h5
 | 方法 | 路径 | 描述 | 权限 |
 |------|------|------|------|
 | POST | /upload/image | 上传图片 | 登录 |
+| POST | /upload/avatar | 上传头像 | 登录 |
 
 ---
 
@@ -270,7 +254,7 @@ npm run build:h5
 
 ```json
 {
-    "code": "200",
+    "code": 200,
     "message": "success",
     "data": { ... },
     "timestamp": 1234567890
